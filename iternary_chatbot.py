@@ -710,6 +710,11 @@ def chatbot_travel_planner(user_input):
             for activity in itinerary[city]:
                 st.markdown(f"- {activity}")
 
+    # Display the map
+    st.write("### Interactive Map")
+    st.components.v1.html(m._repr_html_(), height=600)
+    st.write("### Detailed Itinerary")
+
     return resolved_destinations
 
 # Run the app

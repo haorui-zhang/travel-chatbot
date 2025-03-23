@@ -10,4 +10,5 @@ langchain
 langchain-openai
 watchdog
 pydantic
-typing-extensions 
+typing-extensions
+streamlit-components 
