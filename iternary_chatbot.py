@@ -481,8 +481,26 @@ def generate_google_maps_route(cities):
 def plot_route_on_map(cities, allocations, start_date, itinerary):
     """Plot the route on a Folium map with enhanced UI."""
     try:
-        # Create a map centered on Brazil
-        m = folium.Map(location=[-14.2350, -51.9253], zoom_start=4)
+        # Get coordinates of the first city to center the map
+        geolocator = Nominatim(user_agent="travel_chatbot")
+        first_city = cities[0] if cities else "Tokyo"  # Default to Tokyo if no cities
+        location = geolocator.geocode(first_city)
+        
+        if location:
+            # Create a map centered on the first city
+            m = folium.Map(location=[location.latitude, location.longitude], 
+                         zoom_start=6)
+        else:
+            # Fallback to a default location if geocoding fails
+            m = folium.Map(location=[35.6762, 139.6503], zoom_start=6)  # Default to Tokyo coordinates
+        
+        # Add a title to the map
+        title_html = '''
+            <div style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1000; background-color: white; padding: 10px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.2);">
+                <h3 style="margin: 0;">Your Travel Route</h3>
+            </div>
+        '''
+        m.get_root().html.add_child(folium.Element(title_html))
         
         # Initialize lists for coordinates and city names
         coordinates = []
@@ -606,10 +624,14 @@ def plot_route_on_map(cities, allocations, start_date, itinerary):
                     tooltip=f"Flight: {city_names[i]} → {city_names[i + 1]}"
                 ).add_to(m)
         
-        return m
+        # Save the map to a file
+        map_file = "trip_route_map.html"
+        m.save(map_file)
+        
+        return m, map_file
     except Exception as e:
         print(f"Error creating map: {e}")
-        return None
+        return None, None
 
 def calculate_bearing(lat1, lon1, lat2, lon2):
     """Calculate the bearing between two points."""
@@ -687,15 +709,23 @@ def chatbot_travel_planner(user_input):
         st.markdown(f"[View on Google Maps]({maps_url})")
 
         print("\n📍 Generating interactive map...")
-        m = plot_route_on_map(full_route, allocations, trip['start_date'], itinerary)
+        m, map_file = plot_route_on_map(full_route, allocations, trip['start_date'], itinerary)
         if m is not None:
-            m.save("trip_route_map.html")
             try:
-                webbrowser.open("trip_route_map.html")
-                print("Map saved to trip_route_map.html")
+                # Try to open in browser locally
+                webbrowser.open(map_file)
+                print(f"Map saved to {map_file}")
             except Exception as e:
-                st.warning(f"Could not open map in browser: {str(e)}")
-                st.markdown("Map saved to trip_route_map.html")
+                print(f"Could not open map in browser: {str(e)}")
+            
+            # Always provide a link to the map file
+            st.markdown(f"""
+            ### Interactive Map
+            You can view the interactive map in two ways:
+            1. [Click here to open the map in a new tab]({map_file})
+            2. View the map below:
+            """)
+            st.components.v1.html(m._repr_html_(), height=600)
         else:
             st.warning("Could not generate interactive map. Please use the Google Maps link above.")
     else:
@@ -710,9 +740,6 @@ def chatbot_travel_planner(user_input):
             for activity in itinerary[city]:
                 st.markdown(f"- {activity}")
 
-    # Display the map
-    st.write("### Interactive Map")
-    st.components.v1.html(m._repr_html_(), height=600)
     st.write("### Detailed Itinerary")
 
     return resolved_destinations
