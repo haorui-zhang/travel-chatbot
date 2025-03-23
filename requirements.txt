@@ -1,0 +1,9 @@
+langchain>=0.1.0
+langchain-openai>=0.0.2
+openai>=1.0.0
+streamlit>=1.30.0
+folium>=0.15.0
+geopy>=2.4.0
+matplotlib>=3.8.0
+python-dotenv>=1.0.0
+numpy>=1.24.0 
