@@ -17,6 +17,9 @@ import streamlit as st
 import numpy as np
 from urllib.parse import quote
 from dotenv import load_dotenv
+import streamlit.components.v1 as components
+from pydantic import BaseModel, Field
+from typing import List, Dict, Optional
 
 # Load environment variables
 load_dotenv()
@@ -346,10 +349,13 @@ def extract_day_allocations(gpt_text: str):
     allocation_section = re.search(r'### Day Allocation:(.*?)(?=###|$)', gpt_text, re.DOTALL)
     if allocation_section:
         text = allocation_section.group(1)
-        # Extract city and days
+        # Extract city and days, excluding Buffer/Extra days
         for match in re.findall(r'[-•]\s*(.*?):\s*(\d+)\s*days?', text, re.IGNORECASE):
             city, days = match
-            allocations[city.strip()] = int(days)
+            city = city.strip()
+            # Skip if the city contains 'buffer' or 'extra' (case insensitive)
+            if not any(word in city.lower() for word in ['buffer', 'extra', 'travel']):
+                allocations[city] = int(days)
     
     # If no explicit allocations found, try to extract from daily itinerary
     if not allocations:
@@ -362,17 +368,20 @@ def extract_day_allocations(gpt_text: str):
             city_header = re.match(r'(?:[-•]\s*)?([^:]+):', line)
             if city_header:
                 current_city = city_header.group(1).strip()
-                if 'day' not in current_city.lower():
+                # Skip if the city contains 'buffer' or 'extra' (case insensitive)
+                if not any(word in current_city.lower() for word in ['buffer', 'extra', 'travel']):
                     city_days[current_city] = city_days.get(current_city, 0) + 1
             
             # Check for day entries
             day_entry = re.match(r'.*Day\s+\d+.*', line)
             if day_entry and current_city:
-                city_days[current_city] = city_days.get(current_city, 0) + 1
+                # Skip if the current city contains 'buffer' or 'extra' (case insensitive)
+                if not any(word in current_city.lower() for word in ['buffer', 'extra', 'travel']):
+                    city_days[current_city] = city_days.get(current_city, 0) + 1
         
         # Convert to allocations
         for city, days in city_days.items():
-            if not any(word in city.lower() for word in ['travel', 'departure', 'arrival']):
+            if not any(word in city.lower() for word in ['buffer', 'extra', 'travel']):
                 allocations[city] = days
     
     return allocations
@@ -444,14 +453,15 @@ def extract_daily_itinerary(gpt_text: str):
                         if city not in itinerary:
                             itinerary[city] = []
                         
-                        # Clean up the content and remove time markers
+                        # Clean up the content and remove time markers and asterisks
                         activities = []
                         for line in day_content.split('\n'):
                             line = line.strip()
                             if line and not line.startswith('**'):
-                                # Remove time markers and bullet points
+                                # Remove time markers, bullet points, and asterisks
                                 line = re.sub(r'^[-•]\s*', '', line)
                                 line = re.sub(r'(Morning|Afternoon|Evening|Night):\s*', '', line)
+                                line = re.sub(r'\*\*', '', line)  # Remove asterisks
                                 if line.strip():  # Only add non-empty lines
                                     activities.append(line.strip())
                         
@@ -691,11 +701,12 @@ def chatbot_travel_planner(user_input):
         if m is not None:
             m.save("trip_route_map.html")
             try:
-                webbrowser.open("trip_route_map.html")
-                print("Map saved to trip_route_map.html")
+                # Display the map directly in Streamlit
+                with open("trip_route_map.html", "r", encoding="utf-8") as f:
+                    map_html = f.read()
+                components.html(map_html, height=600)
             except Exception as e:
-                st.warning(f"Could not open map in browser: {str(e)}")
-                st.markdown("Map saved to trip_route_map.html")
+                st.warning(f"Could not display map: {str(e)}")
         else:
             st.warning("Could not generate interactive map. Please use the Google Maps link above.")
     else:
@@ -747,6 +758,68 @@ if __name__ == "__main__":
         # Add a reset button in the sidebar
         with st.sidebar:
             st.title("🧭 Navigation")
+            
+            # Add Help Section
+            st.markdown("### 📖 How to Use")
+            with st.expander("Click to see instructions", expanded=False):
+                st.markdown("""
+                1. **Fill out the trip form** with:
+                   - Country you want to visit
+                   - Start date
+                   - Trip duration
+                   - Departure city
+                   - Destinations (comma-separated)
+
+                2. **Chat with the AI** to:
+                   - Get travel recommendations
+                   - Discuss specific interests
+                   - Ask about local events
+                   - Get visa information
+
+                3. **Click 'Ready to Plan'** when you want to:
+                   - Generate detailed itinerary
+                   - See interactive map
+                   - Get day-by-day activities
+
+                4. **Start New Trip** to plan another adventure!
+                """)
+
+            # Add Quick Overview Section
+            st.markdown("### 🌟 Popular Destinations")
+            with st.expander("Click to see destinations", expanded=False):
+                st.markdown("""
+                **Popular Countries:**
+                - Brazil (Beaches, Culture)
+                - Japan (Technology, Tradition)
+                - France (Art, Cuisine)
+                - Italy (History, Food)
+                - Thailand (Beaches, Temples)
+
+                **Best Time to Visit:**
+                - Summer: June-August
+                - Winter: December-February
+                - Shoulder Season: March-May, September-November
+                """)
+
+            # Add Tips Section (folded)
+            st.markdown("### 💡 Travel Tips")
+            with st.expander("Click to see tips", expanded=False):
+                st.markdown("""
+                **Before You Go:**
+                - Check visa requirements
+                - Get travel insurance
+                - Learn basic local language
+                - Pack for the season
+
+                **During Your Trip:**
+                - Use safe transport options
+                - Keep valuables secure
+                - Drink bottled water
+                - Try local cuisine
+                """)
+
+            # Add the reset button at the bottom
+            st.markdown("---")
             if st.button("Start New Trip", use_container_width=True):
                 # Reset all session state
                 session_vars = [
@@ -754,7 +827,7 @@ if __name__ == "__main__":
                     'initial_prompt',
                     'messages',
                     'ready_to_plan',
-                    'form_values'  # Add form_values to reset list
+                    'form_values'
                 ]
                 for key in session_vars:
                     if key in st.session_state:
