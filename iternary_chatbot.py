@@ -23,9 +23,9 @@ load_dotenv()
 
 # Initialize OpenAI client with API key from environment
 llm = ChatOpenAI(
-    model="gpt-4-turbo",
+    model="gpt-4",
     temperature=0,
-    openai_api_key=os.getenv("OPENAI_API_KEY")
+    api_key=os.getenv("OPENAI_API_KEY")
 )
 
 # STEP 0: Chat interaction to validate user preferences
