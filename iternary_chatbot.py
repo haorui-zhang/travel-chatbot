@@ -491,8 +491,16 @@ def generate_google_maps_route(cities):
 def plot_route_on_map(cities, allocations, start_date, itinerary):
     """Plot the route on a Folium map with enhanced UI."""
     try:
-        # Create a map centered on Brazil
-        m = folium.Map(location=[-14.2350, -51.9253], zoom_start=4)
+        # Get coordinates for the first city to center the map
+        second_city = cities[1]
+        first_location = Nominatim(user_agent="my_agent", timeout=10).geocode(second_city)
+        
+        # Create a map centered on the first destination
+        m = folium.Map(
+            location=[first_location.latitude, first_location.longitude],
+            zoom_start=5,
+            tiles='OpenStreetMap'
+        )
         
         # Initialize lists for coordinates and city names
         coordinates = []
