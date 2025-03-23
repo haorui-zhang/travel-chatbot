@@ -1,77 +1,69 @@
-# Interactive Travel Chatbot
+# Travel Chatbot
 
-An intelligent travel planning assistant that helps users create personalized travel itineraries using AI. The chatbot provides interactive planning, route optimization, and visual trip mapping.
+An interactive travel planning chatbot that helps users plan their trips with AI-powered recommendations, interactive maps, and detailed itineraries.
 
 ## Features
 
-- 🤖 Interactive chat interface for travel planning
-- 🌍 Multi-destination trip planning
-- 🗺️ Interactive map visualization with route planning
-- 📅 Detailed daily itineraries
-- ✈️ Airport code resolution
-- 🎯 Route optimization
-- 📱 Beautiful Streamlit UI
+- Interactive chat interface for trip planning
+- AI-powered travel recommendations
+- Interactive maps with route visualization
+- Detailed daily itineraries
+- Airport code resolution
+- Google Maps integration
+- Beautiful UI with Streamlit
 
-## Prerequisites
-
-- Python 3.8+
-- OpenAI API key
-- Internet connection for map services
-
-## Installation
+## Setup
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/travel-chatbot.git
+git clone https://github.com/haorui-zhang/travel-chatbot.git
 cd travel-chatbot
 ```
 
-2. Install the required packages:
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Set up your OpenAI API key:
-   - Create a `.env` file in the project root
-   - Add your OpenAI API key:
-   ```
-   OPENAI_API_KEY=your_api_key_here
-   ```
+3. Create a `.env` file with your OpenAI API key:
+```
+OPENAI_API_KEY=your_api_key_here
+```
 
-## Usage
-
-1. Run the Streamlit app:
+4. Run the application:
 ```bash
 streamlit run iternary_chatbot.py
 ```
 
-2. Open your web browser and navigate to the URL shown in the terminal (typically http://localhost:8501)
+## Usage
 
-3. Start planning your trip by:
-   - Entering your departure city
-   - Selecting destinations
-   - Specifying trip duration
-   - Choosing travel dates
+1. Enter your trip details in the form:
+   - Country
+   - Departure city
+   - Destinations
+   - Start date
+   - Trip duration
 
-## Features in Detail
+2. Chat with the AI travel advisor to refine your plans
 
-- **Interactive Chat**: Natural conversation with the AI travel advisor
-- **Route Optimization**: Smart planning of travel routes between destinations
-- **Visual Maps**: Interactive Folium maps showing your travel route
-- **Detailed Itineraries**: Day-by-day breakdown of activities and travel plans
-- **Google Maps Integration**: Direct links to view routes on Google Maps
+3. Click "Ready to Plan" when you're satisfied with the details
 
-## Contributing
+4. View your interactive map and detailed itinerary
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+## Live Demo
+
+Visit the live demo at: [Your Streamlit Cloud URL]
+
+## Technologies Used
+
+- Python
+- Streamlit
+- LangChain
+- OpenAI GPT-4
+- Folium
+- Geopy
+- Matplotlib
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- OpenAI for GPT-4 API
-- Streamlit for the web interface
-- Folium for map visualization
-- Geopy for geocoding services 
+MIT License 
