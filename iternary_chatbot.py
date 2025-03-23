@@ -32,26 +32,6 @@ llm = ChatOpenAI(
 )
 
 # STEP 0: Chat interaction to validate user preferences
-def verify_location(city, country):
-    """Verify the correct location with the user."""
-    try:
-        # Get coordinates for the city
-        location = Nominatim(user_agent="my_agent", timeout=10).geocode(f"{city}, {country}")
-        if location:
-            # Get more detailed location info
-            location_details = Nominatim(user_agent="my_agent", timeout=10).reverse(
-                f"{location.latitude}, {location.longitude}",
-                language='en'
-            )
-            if location_details and location_details.raw.get('address'):
-                address = location_details.raw['address']
-                region = address.get('state', '')
-                country = address.get('country', '')
-                return f"{city} in {region}, {country}"
-    except Exception as e:
-        print(f"Error verifying location: {e}")
-    return None
-
 def chat_with_user(initial_input: str = None) -> dict:
     # Initialize session state for chat
     if 'messages' not in st.session_state:
@@ -77,44 +57,26 @@ def chat_with_user(initial_input: str = None) -> dict:
 
         # Initial AI response if this is the first message
         if len(st.session_state.messages) == 1:
-            # Extract destinations from the initial input
-            destinations = []
-            if 'form_values' in st.session_state:
-                destinations = [d.strip() for d in st.session_state.form_values.get('destinations', '').split(',')]
+            chat_prompt = ChatPromptTemplate.from_template("""
+            You are a friendly travel advisor. Based on the user's input, ask relevant follow-up questions to ensure we have all necessary details and validate their travel plans. Consider:
+
+            1. If the destinations are realistic given the duration
+            2. If the time of year is suitable for their chosen destinations
+            3. If there might be better alternatives for their interests
+            4. Any potential travel restrictions or visa requirements
+            5. Special considerations based on their departure city
+
+            Current input: {user_input}
+
+            Provide your response in a conversational way, asking at most 2 questions at a time.
+            Also mention that the user can click the 'Ready to Plan' button when they want to proceed with the trip planning.
+            """)
             
-            # Check for potentially confusing locations
-            location_verifications = []
-            for dest in destinations:
-                verified_location = verify_location(dest, st.session_state.form_values.get('country', ''))
-                if verified_location:
-                    location_verifications.append(f"- {dest} → {verified_location}")
-            
-            if location_verifications:
-                verification_message = "I found some locations that might need clarification:\n\n" + "\n".join(location_verifications) + "\n\nPlease confirm if these are the correct locations you want to visit. If not, please specify the correct locations."
-                with st.chat_message("assistant"):
-                    st.markdown(verification_message)
-                    st.session_state.messages.append({"role": "assistant", "content": verification_message})
-            else:
-                chat_prompt = ChatPromptTemplate.from_template("""
-                You are a friendly travel advisor. Based on the user's input, ask relevant follow-up questions to ensure we have all necessary details and validate their travel plans. Consider:
-
-                1. If the destinations are realistic given the duration
-                2. If the time of year is suitable for their chosen destinations
-                3. If there might be better alternatives for their interests
-                4. Any potential travel restrictions or visa requirements
-                5. Special considerations based on their departure city
-
-                Current input: {user_input}
-
-                Provide your response in a conversational way, asking at most 2 questions at a time.
-                Also mention that the user can click the 'Ready to Plan' button when they want to proceed with the trip planning.
-                """)
-                
-                chat_chain = chat_prompt | llm
-                with st.chat_message("assistant"):
-                    response = chat_chain.invoke({"user_input": st.session_state.messages[0]["content"]})
-                    st.markdown(response.content)
-                    st.session_state.messages.append({"role": "assistant", "content": response.content})
+            chat_chain = chat_prompt | llm
+            with st.chat_message("assistant"):
+                response = chat_chain.invoke({"user_input": st.session_state.messages[0]["content"]})
+                st.markdown(response.content)
+                st.session_state.messages.append({"role": "assistant", "content": response.content})
 
     # Add some spacing before the Ready to Plan button
     st.markdown("<br>", unsafe_allow_html=True)
@@ -134,43 +96,6 @@ def chat_with_user(initial_input: str = None) -> dict:
             with st.chat_message("user"):
                 st.markdown(prompt)
             st.session_state.messages.append({"role": "user", "content": prompt})
-
-            # Check if this is a response to location verification
-            if len(st.session_state.messages) == 3 and "locations that might need clarification" in st.session_state.messages[1]["content"]:
-                # Update destinations in form values based on user's response
-                if 'form_values' in st.session_state:
-                    # Extract the corrected destinations from the user's response
-                    corrected_destinations = []
-                    country = st.session_state.form_values.get('country', '')
-                    
-                    # Process each destination mentioned in the user's response
-                    for dest in prompt.split(','):
-                        dest = dest.strip()
-                        if dest:
-                            # If the user specifies a region (e.g., "patagonia is in southern chile")
-                            if "is in" in dest.lower():
-                                # Extract the location name and region
-                                parts = dest.lower().split("is in")
-                                location = parts[0].strip()
-                                region = parts[1].strip()
-                                # Update the location with the correct region
-                                corrected_destinations.append(f"{location} ({region})")
-                            else:
-                                corrected_destinations.append(dest)
-                    
-                    # Update form values with corrected destinations
-                    st.session_state.form_values['destinations'] = ', '.join(corrected_destinations)
-                    
-                    # Update the initial prompt with corrected destinations
-                    departure_city = st.session_state.form_values.get('departure_city', '')
-                    start_date = st.session_state.initial_prompt.split('starting on ')[1].split(',')[0]
-                    duration_days = st.session_state.initial_prompt.split('for ')[1].split(' days')[0]
-                    
-                    st.session_state.initial_prompt = (
-                        f"I want to go to {country} in {start_date.split('-')[1]} for {duration_days} days, starting on {start_date}, "
-                        f"from {departure_city}. I want to visit {st.session_state.form_values['destinations']}."
-                    )
-                    st.session_state.messages[0]["content"] = st.session_state.initial_prompt
 
             # Generate AI response
             with st.chat_message("assistant"):
@@ -567,24 +492,10 @@ def plot_route_on_map(cities, allocations, start_date, itinerary):
     """Plot the route on a Folium map with enhanced UI."""
     try:
         # Get coordinates for the first city to center the map
-        first_city = cities[0]
-        # Extract country from the first city's activities if available
-        first_city_activities = itinerary.get(first_city, [])
-        country = None
-        for activity in first_city_activities:
-            if "Country:" in activity:
-                country = activity.split("Country:")[1].strip()
-                break
-        
-        # If no country found in activities, try to get it from the trip details
-        if not country and 'form_values' in st.session_state:
-            country = st.session_state.form_values.get('country', '')
+        second_city = cities[1]
+        first_location = Nominatim(user_agent="my_agent", timeout=10).geocode(second_city)
         
         # Create a map centered on the first destination
-        first_location = Nominatim(user_agent="my_agent", timeout=10).geocode(f"{first_city}, {country}" if country else first_city)
-        if not first_location:
-            raise Exception(f"Could not find coordinates for {first_city}, {country}")
-        
         m = folium.Map(
             location=[first_location.latitude, first_location.longitude],
             zoom_start=5,
@@ -598,8 +509,7 @@ def plot_route_on_map(cities, allocations, start_date, itinerary):
         # Get coordinates for each city
         for city in cities:
             try:
-                # Search with country name to ensure correct location
-                location = Nominatim(user_agent="my_agent", timeout=10).geocode(f"{city}, {country}" if country else city)
+                location = Nominatim(user_agent="my_agent", timeout=10).geocode(city)
                 if location:
                     coordinates.append([location.latitude, location.longitude])
                     city_names.append(city)
